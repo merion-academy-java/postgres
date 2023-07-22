@@ -33,6 +33,18 @@ public class UserApiController {
         return UserResponse.of(user);
     }
 
+    @PutMapping(UserRoutes.BY_ID)
+    public UserResponse edit(@PathVariable Long id, @RequestBody CreateUserRequest request) {
+        UserEntity user = userRepository
+                .findById(id)
+                .orElseThrow(UserNotFoundException::new);
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+
+        user = userRepository.save(user);
+        return UserResponse.of(user);
+    }
+
     @GetMapping(UserRoutes.BY_ID)
     public UserResponse byId(@PathVariable Long id) {
         return userRepository
