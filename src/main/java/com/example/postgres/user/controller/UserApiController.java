@@ -7,7 +7,12 @@ import com.example.postgres.user.exceptions.UserNotFoundException;
 import com.example.postgres.user.repository.UserRepository;
 import com.example.postgres.user.routes.UserRoutes;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @AllArgsConstructor
@@ -32,6 +37,18 @@ public class UserApiController {
                 .findById(id)
                 .map(UserResponse::of)
                 .orElseThrow(UserNotFoundException::new);
+    }
+
+    @GetMapping(UserRoutes.SEARCH)
+    public List<UserResponse> search(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return userRepository
+                .findAll(pageable)
+                .stream()
+                .map(UserResponse::of)
+                .collect(Collectors.toList());
     }
 
 }
