@@ -1,20 +1,19 @@
 package com.example.postgres.user.controller;
 
-import com.example.postgres.user.dto.request.CreateUserRequest;
+import com.example.postgres.user.dto.request.RegistrationUserRequest;
 import com.example.postgres.user.dto.request.EditUserRequest;
 import com.example.postgres.user.dto.response.UserResponse;
 import com.example.postgres.user.entity.UserEntity;
 import com.example.postgres.user.exceptions.BadRequestException;
+import com.example.postgres.user.exceptions.UserAlreadyExistException;
 import com.example.postgres.user.exceptions.UserNotFoundException;
 import com.example.postgres.user.repository.UserRepository;
 import com.example.postgres.user.routes.UserRoutes;
-import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Example;
@@ -25,6 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -59,10 +59,13 @@ public class UserApiController {
         return UserResponse.of(user);
     }
 
-    @Operation(summary = "Создание пользователя", description = "Создаем пользователя по имени и фамилии")
-    @PostMapping(UserRoutes.CREATE)
-    public UserResponse create(@RequestBody CreateUserRequest request) throws BadRequestException {
+    @Operation(summary = "Регистрация пользователя", description = "Создаем пользователя по имени и фамилии")
+    @PostMapping(UserRoutes.REGISTRATION)
+    public UserResponse registration(@RequestBody RegistrationUserRequest request) throws BadRequestException, UserAlreadyExistException {
         request.validate();
+
+        Optional<UserEntity> check = userRepository.findByEmail(request.getEmail());
+        if(check.isPresent()) throw new UserAlreadyExistException();
 
         UserEntity user = UserEntity.builder()
                 .firstName(request.getFirstName())
@@ -84,10 +87,10 @@ public class UserApiController {
                     content = @Content),
             @ApiResponse(responseCode = "404", description = "Пользователь с таким id не найден",
                     content = @Content)})
-    @PutMapping(UserRoutes.BY_ID)
-    public UserResponse edit(@PathVariable Long id, @RequestBody EditUserRequest request) {
+    @PutMapping(UserRoutes.EDIT)
+    public UserResponse edit(Principal principal, @RequestBody EditUserRequest request) {
         UserEntity user = userRepository
-                .findById(id)
+                .findByEmail(principal.getName())
                 .orElseThrow(UserNotFoundException::new);
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
