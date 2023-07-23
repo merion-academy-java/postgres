@@ -1,24 +1,28 @@
 package com.example.postgres;
 
-import com.example.postgres.user.dto.request.CreateUserRequest;
+import com.example.postgres.user.dto.request.RegistrationUserRequest;
 import com.example.postgres.user.dto.request.EditUserRequest;
 import com.example.postgres.user.dto.response.UserResponse;
 import com.example.postgres.user.entity.UserEntity;
 import com.example.postgres.user.repository.UserRepository;
 import com.example.postgres.user.routes.UserRoutes;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Base64;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -39,6 +43,28 @@ public class WebTests {
 
     @Autowired
     private UserRepository userRepository;
+    @Value("${init.email}")
+    private String initUser;
+    @Value("${init.password}")
+    private String initPassword;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @BeforeEach
+    public void config() {
+        Optional<UserEntity> check = userRepository.findByEmail(initUser);
+        if(check.isPresent()) return;
+
+        UserEntity user = UserEntity.builder()
+                .email(initUser)
+                .password(passwordEncoder.encode(initPassword))
+                .build();
+        userRepository.save(user);
+    }
+
+    public String authHeader() {
+        return "Basic " + Base64.getEncoder().encodeToString((initUser + ":" + initPassword).getBytes());
+    }
 
     @Test
     void contextLoad() throws Exception {
@@ -52,22 +78,26 @@ public class WebTests {
         mockMvc.perform(
                         get(UserRoutes.BY_ID, user.getId().toString())
                                 .contentType(MediaType.APPLICATION_JSON)
+                                .header(HttpHeaders.AUTHORIZATION, authHeader())
                 )
                 .andDo(print())
                 .andExpect(status().isOk());
     }
 
     @Test
-    void createTest() throws Exception {
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
+    void registrationTest() throws Exception {
+        RegistrationUserRequest createUserRequest = RegistrationUserRequest.builder()
                 .firstName("createTest")
                 .lastName("test")
+                .email("reg@email.ru")
+                .password("1")
                 .build();
 
         mockMvc.perform(
-                        post(UserRoutes.CREATE)
+                        post(UserRoutes.REGISTRATION)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(createUserRequest)))
+                                .content(objectMapper.writeValueAsString(createUserRequest))
+                )
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("createTest")));
@@ -84,7 +114,9 @@ public class WebTests {
 
         mockMvc.perform(
                         get(UserRoutes.BY_ID, user.getId().toString())
-                                .contentType(MediaType.APPLICATION_JSON))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header(HttpHeaders.AUTHORIZATION, authHeader())
+                )
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("findByIdTest")));
@@ -94,7 +126,9 @@ public class WebTests {
     void findByIdTest_notFound() throws Exception {
         mockMvc.perform(
                         get(UserRoutes.BY_ID, "1234")
-                                .contentType(MediaType.APPLICATION_JSON))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header(HttpHeaders.AUTHORIZATION, authHeader())
+                )
                 .andDo(print())
                 .andExpect(status().isNotFound());
     }
@@ -104,19 +138,21 @@ public class WebTests {
         UserEntity user = UserEntity.builder()
                 .firstName("findByIdTest")
                 .lastName("findByIdTest")
+                .email("update@email.ru")
+                .password(passwordEncoder.encode("1"))
                 .build();
         user = userRepository.save(user);
 
         EditUserRequest request = EditUserRequest.builder()
-                .id(user.getId())
                 .firstName("updateTest")
                 .lastName("updateTest")
                 .build();
 
         mockMvc.perform(
-                        put(UserRoutes.BY_ID, user.getId().toString())
+                        put(UserRoutes.EDIT)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
+                                .header(HttpHeaders.AUTHORIZATION, "Basic " + Base64.getEncoder().encodeToString(("update@email.ru" + ":" + "1").getBytes()))
                 )
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -135,7 +171,7 @@ public class WebTests {
         mockMvc.perform(
                         delete(UserRoutes.BY_ID, userEntity.getId().toString())
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .header(HttpHeaders.AUTHORIZATION, "Basic " + Base64.getEncoder().encodeToString("user:user".getBytes()))
+                                .header(HttpHeaders.AUTHORIZATION, authHeader())
                 )
 
                 .andDo(print())
@@ -163,7 +199,9 @@ public class WebTests {
         mockMvc.perform(
                         get(UserRoutes.SEARCH)
                                 .param("size", "1000")
-                                .contentType(MediaType.APPLICATION_JSON))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header(HttpHeaders.AUTHORIZATION, authHeader())
+                )
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content().json(objectMapper.writeValueAsString(result)));
