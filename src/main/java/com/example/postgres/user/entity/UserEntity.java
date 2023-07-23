@@ -21,4 +21,6 @@ public class UserEntity{
     @Column(name = "first_name")
     protected String firstName;
     protected String lastName;
+    protected String email;
+    protected String password;
 }

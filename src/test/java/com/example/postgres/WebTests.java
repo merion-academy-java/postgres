@@ -11,8 +11,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.Base64;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -121,20 +125,23 @@ public class WebTests {
 
     @Test
     void deleteTest() throws Exception {
-        UserEntity user = UserEntity.builder()
+        UserEntity userEntity = UserEntity.builder()
                 .firstName("findByIdTest")
                 .lastName("findByIdTest")
                 .build();
 
-        user = userRepository.save(user);
+        userEntity = userRepository.save(userEntity);
 
         mockMvc.perform(
-                        delete(UserRoutes.BY_ID, user.getId().toString())
-                                .contentType(MediaType.APPLICATION_JSON))
+                        delete(UserRoutes.BY_ID, userEntity.getId().toString())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .header(HttpHeaders.AUTHORIZATION, "Basic " + Base64.getEncoder().encodeToString("user:user".getBytes()))
+                )
+
                 .andDo(print())
                 .andExpect(status().isOk());
 
-        assert userRepository.findById(user.getId()).isEmpty();
+        assert userRepository.findById(userEntity.getId()).isEmpty();
     }
 
     @Test
