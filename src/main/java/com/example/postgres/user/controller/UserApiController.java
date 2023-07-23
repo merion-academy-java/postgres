@@ -30,6 +30,11 @@ public class UserApiController {
 
     private final UserRepository userRepository;
 
+    @GetMapping(UserRoutes.TEST)
+    public String test() {
+        return HttpStatus.OK.name();
+    }
+
     @Operation(summary = "Создание пользователя", description = "Создаем пользователя по имени и фамилии")
     @PostMapping(UserRoutes.CREATE)
     public UserResponse create(@RequestBody CreateUserRequest request) {
